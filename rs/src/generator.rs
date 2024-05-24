@@ -19,9 +19,11 @@ impl Generator {
         hidden_dim: i64,
         output_channels: i64,
         num_layers: i64,
-    ) -> Self {
-        let mapping = MappingNetwork::new(vs / "mapping", latent_dim, hidden_dim, num_layers);
-        let mut style_layers = Vec::new();
+    ) -> Result<Self, String> {
+        let mapping = MappingNetwork::new(vs / "mapping", latent_dim, hidden_dim)
+            .map_err(|e| format!("Failed to create MappingNetwork: {}", e))?;
+
+        let mut style_layers = Vec::with_capacity(num_layers as usize + 1);
 
         for i in 0..num_layers {
             let layer = StyleLayer::new(
@@ -30,25 +32,27 @@ impl Generator {
                 hidden_dim,
                 hidden_dim,
                 3,
-                true,
-                i % 2 == 1, // upsample for odd layers
-            );
+                i % 2 == 1,
+            )
+            .map_err(|e| format!("Failed to create StyleLayer {}: {}", i, e))?;
             style_layers.push(layer);
         }
 
         // Final style layer (no upsampling, output_channels as output)
-        style_layers.push(StyleLayer::new(
+        let final_layer = StyleLayer::new(
             vs / format!("style_layer_{}", num_layers),
             hidden_dim,
             hidden_dim,
             output_channels,
             3,
             false,
-            false,
-        ));
+        )
+        .map_err(|e| format!("Failed to create final StyleLayer: {}", e))?;
+        style_layers.push(final_layer);
 
         let to_rgb = nn::seq()
             .add(nn::conv2d(
+                vs / "to_rgb",
                 output_channels,
                 output_channels,
                 1,
@@ -56,11 +60,11 @@ impl Generator {
             ))
             .add_fn(|xs| xs.tanh());
 
-        Generator {
+        Ok(Generator {
             mapping,
             style_layers,
             to_rgb,
-        }
+        })
     }
 }
 
@@ -69,7 +73,9 @@ impl Module for Generator {
         let w = self.mapping.forward(z);
 
         // Efficient repetition of w for each style layer
-        let w = w.unsqueeze(1).expand(&[-1, self.style_layers.len() as i64, -1]);
+        let w = w
+            .unsqueeze(1)
+            .expand(w, &[-1, self.style_layers.len() as i64, -1]);
 
         // Initialize x with proper dimensions (considering batch size)
         let mut x = Tensor::randn(
