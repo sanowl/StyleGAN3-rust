@@ -8,7 +8,7 @@ pub struct AdaIN<T> {
 impl<T: Copy + Default + std::ops::Mul<Output = T> + std::ops::Add<Output = T>> AdaIN<T> {
     pub fn new(latent_dim: usize, channels: usize) -> Self {
         let norm = InstanceNorm2D::new(channels);
-        let style = Linear::new(latent_dim, channels * 2);
+        let style: Linear<T> = Linear::new(latent_dim, channels * 2);
 
         AdaIN { norm, style }
     }
@@ -62,7 +62,6 @@ impl<T: Copy + Default + std::ops::Mul<Output = T> + std::ops::Add<Output = T>> 
                 }
             }
         }
-
         output
     }
 }
