@@ -177,7 +177,7 @@ fn element_wise_addition_parallel<T: Copy + Default + std::ops::Add<Output = T> 
                         row_a
                             .par_iter()
                             .zip(row_b.par_iter())
-                            .map(|(a, b)| a + b)
+                            .map(|(a, b)| *a + *b)
                             .collect()
                     },
                 ));
