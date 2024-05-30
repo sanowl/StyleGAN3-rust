@@ -22,8 +22,6 @@ impl fmt::Debug for AdaINError {
     }
 }
 
-
-
 pub struct StyleLayer<T> {
     noise_injection: NoiseInjection,
     adain: AdaIN,
